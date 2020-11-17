@@ -30,3 +30,6 @@ ps5 <- read.csv(file.choose())
 ps5Text<- ps5$text
 View(ps5Text)
 
+wordByLine <- ps5Text %>%
+  mutate(linenumber = row_number()) %>%
+  unnest_tokens(word, V1)
