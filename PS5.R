@@ -25,7 +25,8 @@ get_sentiments("loughran")
 get_sentiments("afinn")
 get_sentiments("nrc")
 
-ps5 <- read.csv(file.choose())
+ps5 <- read.csv(file = 'ps5.csv', stringsAsFactors=FALSE)
+
 
 ps5Text<- ps5$text
 View(ps5Text)
