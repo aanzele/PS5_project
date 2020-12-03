@@ -1,12 +1,21 @@
 ---
-title: "PS5-Xbox analysis"
+title: "PS5-Xbox sentiment analysis"
 author: "Amos Anzele"
 date: "12/3/2020"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
+
+  Boasting 2 billion monthly active users, YouTube us the second highest visited sire with 2 billion active monthly users.  At 335 million monthly active users, Twitter is also one of the most used social networking platforms in the world.  With the release of the Playstation 5 and Xbox series X, I wanted to leverage the interactions from both these platforms to understand the reception each console is getting.  From my the people I interact with, the Playstation console always seems to have the most favorable reviews compared the Xbox.
+
+[Link to my Github for datasets](https://github.com/aanzele/PS5_project)
+
+Required packages: 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, TRUE,fig.width=12, fig.height=8)
 library(tidyverse)
 library(tidytext)
 library(lubridate)
@@ -16,10 +25,14 @@ library(wordcloud)
 library(tm)
 library(gdata)
 library(textmineR)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
 ```
 
-
+Data collected from Twitter and Youtube ([YouTube video comparing both products from popular YouTuber](https://www.youtube.com/watch?v=Jq-ODza3Kpc)):
 ```{r}
+
 xbox_tw<- read_csv("xboxTweets.csv")
 
 ps_tw<- read_csv("ps5Tweets.csv")
@@ -28,13 +41,26 @@ yt <- read_csv("ytcomments.csv")
 
 ```
 
-#Exploring the data 
+Exploring the data:
+  - Both Twitter datasets have 17 variables, while the YouTube data has 16, however the YouTube comments on this video is about three times the size.
 ```{r}
 head(xbox_tw)
 
 head(ps_tw)
 
 head(yt)
+
+dim(xbox_tw)
+
+dim(ps_tw)
+
+dim(yt)
+
+names(xbox_tw)
+
+names(ps_tw)
+
+names(yt)
 ```
 
 # 5 descriptives from the dataset
@@ -50,7 +76,7 @@ xbox_tw %>%
   select(text,created) %>% 
   unnest_tokens(word,text)  %>% 
   anti_join(stop_words) %>% 
-  filter(word %!in% c("https","t.co","rt","4","12","500")) %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500","rangermj","person","tweet")) %>% 
   count(word,sort=TRUE) %>% 
   mutate(word=fct_reorder(word,n)) %>% 
   slice(1:20) %>% 
@@ -74,7 +100,7 @@ ps_tw %>%
   select(text,created) %>% 
   unnest_tokens(word,text)  %>% 
   anti_join(stop_words) %>% 
-  filter(word %!in% c("https","t.co","rt","4","12","500")) %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500","leanandcuisine","glock","pay5n7yiup","1000","fe0f","aint")) %>% 
   count(word,sort=TRUE) %>% 
   mutate(word=fct_reorder(word,n)) %>% 
   slice(1:20) %>% 
@@ -123,7 +149,7 @@ xbox_tw %>%
   geom_line()+
   labs(title="Tweet trend of Xbox tweets on twitter",
        y="Count of tweets",
-       x="Mention Date here")+
+       x="Mention Time")+
   theme_light()
   
 ```
@@ -139,7 +165,7 @@ ps_tw %>%
   geom_line()+
   labs(title="Tweet trend of PS tweets on twitter",
        y="Count of tweets",
-       x="Mention Date here")+
+       x="Mention Time")+
   theme_light()
   
 ```
@@ -341,7 +367,7 @@ pal <- brewer.pal(8, "Dark2")
 Word cloud for Xbox 
 ```{r}
 xbox_topwords %>% 
-  filter(word %!in% c("https","t.co","rt","4","12","500","2")) %>%
+  filter(word %!in% c("https","t.co","rt","4","12","500","rangermj","person")) %>%
   with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
 ```
 
@@ -349,7 +375,7 @@ xbox_topwords %>%
 Word cloud for PS 
 ```{r}
 ps_topwords %>% 
-  filter(word %!in% c("https","t.co","rt","4","12","500","2")) %>%
+  filter(word %!in% c("https","t.co","rt","4","12","500","leanandcuisine","glock","pay5n7yiup","1000","fe0f","aint")) %>%
   with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
 ```
 
@@ -407,12 +433,12 @@ x <- x_top_terms %>%
   labs(title="Topics from Xbox tweets")
 
 
-myCorpus <- Corpus(VectorSource(ps_words$word))  
-dtm <- DocumentTermMatrix(myCorpus)
-dtm_new <- removeSparseTerms(dtm,sparse = 0.999)
-rowTotals <- apply(dtm_new , 1, sum) #Find the sum of words in each Document
-dtm.new   <- dtm_new[rowTotals> 0, ]  
-topic_ps <- topicmodels::LDA(dtm.new, k = 3, control = list(seed = 1234))
+myCorpus_1 <- Corpus(VectorSource(ps_words$word))  
+dtm_1 <- DocumentTermMatrix(myCorpus_1)
+dtm_new_1 <- removeSparseTerms(dtm_1,sparse = 0.999)
+rowTotals <- apply(dtm_new_1 , 1, sum) #Find the sum of words in each Document
+dtm.new_1   <- dtm_new_1[rowTotals> 0, ]  
+topic_ps <- topicmodels::LDA(dtm.new_1, k = 3, control = list(seed = 1234))
 
 
 ps_topic <- tidy(topic_ps)
@@ -432,12 +458,12 @@ ps <- ps_top_terms %>%
   theme_light()+
   labs(title="Topics from PS tweets")
 
-myCorpus <- Corpus(VectorSource(yt_words$word))  
-dtm <- DocumentTermMatrix(myCorpus)
-dtm_new <- removeSparseTerms(dtm,sparse = 0.999)
-rowTotals <- apply(dtm_new , 1, sum) #Find the sum of words in each Document
-dtm.new   <- dtm_new[rowTotals> 0, ]  
-topic_yt <- topicmodels::LDA(dtm.new, k = 3, control = list(seed = 1234))
+myCorpus_2 <- Corpus(VectorSource(yt_words$word))  
+dtm_2 <- DocumentTermMatrix(myCorpus_2)
+dtm_new_2 <- removeSparseTerms(dtm_2,sparse = 0.999)
+rowTotals <- apply(dtm_new_2 , 1, sum) #Find the sum of words in each Document
+dtm.new_2   <- dtm_new_2[rowTotals> 0, ]  
+topic_yt <- topicmodels::LDA(dtm.new_2, k = 3, control = list(seed = 1234))
 
 
 yt_topic <- tidy(topic_yt)
@@ -460,5 +486,5 @@ yt <- yt_top_terms %>%
 
 grid.arrange(x,ps,yt)
 ```
-
+**Conclusion:**  My original intent was to understand how these two products were being received, and which one garnered the most positive acclaim.  As stated above, I believed the Playstation would come out the clear favorite, but after this analysis, I come out needing to expand my datasets to get a clearer picture.  I also need to collect more data from the YouTube comments as there seems to be more engagement.   
 
