@@ -1,0 +1,464 @@
+---
+title: "PS5-Xbox analysis"
+author: "Amos Anzele"
+date: "12/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytext)
+library(lubridate)
+library(textdata)
+library(gridExtra)
+library(wordcloud)
+library(tm)
+library(gdata)
+library(textmineR)
+```
+
+
+```{r}
+xbox_tw<- read_csv("xboxTweets.csv")
+
+ps_tw<- read_csv("ps5Tweets.csv")
+
+yt <- read_csv("ytcomments.csv")
+
+```
+
+#Exploring the data 
+```{r}
+head(xbox_tw)
+
+head(ps_tw)
+
+head(yt)
+```
+
+# 5 descriptives from the dataset
+
+#Cleaning & seeing top words for xbox tweets
+
+```{r}
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+#Top 20 words for Xbox tweets
+
+xbox_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500")) %>% 
+  count(word,sort=TRUE) %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(y=word,x=n))+
+  geom_col()+
+  labs(title="Top words in Xbox tweets",
+       y="",
+       x="")+
+  theme_light()
+  
+
+```
+
+
+#Cleaning & seeing top words for PS5 tweets
+
+```{r}
+#Top 20 words for Xbox tweets
+
+ps_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500")) %>% 
+  count(word,sort=TRUE) %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(y=word,x=n))+
+  geom_col()+
+  labs(title="Top words in PS5 tweets",
+       y="",
+       x="")+
+  theme_light()
+  
+  
+
+```
+
+
+#Cleaning & seeing top words for Youtube comments
+
+```{r}
+#Top 20 words from youtube tweets
+
+
+yt %>% 
+  select(textOriginal) %>% 
+  unnest_tokens(word,textOriginal)  %>% 
+  anti_join(stop_words) %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500","2")) %>% 
+  count(word,sort=TRUE) %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(y=word,x=n))+
+  geom_col()+
+  labs(title="Top words in Xbox tweets",
+       y="",
+       x="")+
+  theme_light()
+  
+  
+```
+
+# Tweets by time for Xbox
+```{r}
+xbox_tw %>% 
+  mutate(created=floor_date(created, unit="2 minute")) %>% 
+  count(created) %>% 
+  ggplot(aes(x=created,y=n))+
+  geom_line()+
+  labs(title="Tweet trend of Xbox tweets on twitter",
+       y="Count of tweets",
+       x="Mention Date here")+
+  theme_light()
+  
+```
+
+
+
+# Tweets by time for PS
+```{r}
+ps_tw %>% 
+  mutate(created=floor_date(created, unit="2 minute")) %>% 
+  count(created) %>% 
+  ggplot(aes(x=created,y=n))+
+  geom_line()+
+  labs(title="Tweet trend of PS tweets on twitter",
+       y="Count of tweets",
+       x="Mention Date here")+
+  theme_light()
+  
+```
+
+
+# Comparisons
+
+#Creating sentiment analysis for xbox & PS tweets & Youtube comments 
+```{r}
+p1 <- xbox_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("nrc")) %>% 
+  count(sentiment) %>% 
+  mutate(sentiment=fct_reorder(sentiment,n)) %>% 
+  ggplot(aes(x=n,y=sentiment,fill=sentiment))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Sentiments from Xbox tweets",
+       y="Sentiments",
+       x="Frequency")
+  
+p2 <- ps_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("nrc")) %>% 
+  count(sentiment) %>% 
+  mutate(sentiment=fct_reorder(sentiment,n)) %>% 
+  ggplot(aes(x=n,y=sentiment,fill=sentiment))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Sentiments from PS tweets",
+       y="Sentiments",
+       x="Frequency")
+
+
+p3 <- yt %>% 
+  select(textOriginal) %>% 
+  unnest_tokens(word,textOriginal)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("nrc")) %>% 
+  count(sentiment) %>% 
+  mutate(sentiment=fct_reorder(sentiment,n)) %>% 
+  ggplot(aes(x=n,y=sentiment,fill=sentiment))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Sentiments from Youtube comments",
+       y="Sentiments",
+       x="Frequency")
+
+
+grid.arrange(p1,p2,p3)
+```
+
+What are the top positive words from Xbox, PS & YT tweets
+
+```{r}
+p4 <- xbox_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word,sentiment,sort=TRUE) %>%
+  filter(sentiment=="positive") %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=n,y=word,fill=word))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Top positive words - Xbox",
+       y="",
+       x="Frequency")
+  
+p5 <- ps_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word,sentiment,sort=TRUE) %>%
+  filter(sentiment=="positive") %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=n,y=word,fill=word))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Top positive words - PS",
+       y="",
+       x="Frequency")
+  
+
+
+p6 <- yt %>% 
+  select(textOriginal) %>% 
+  unnest_tokens(word,textOriginal)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word,sentiment,sort=TRUE) %>%
+  filter(sentiment=="positive") %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=n,y=word,fill=word))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Top positive words - Youtube",
+       y="",
+       x="Frequency")
+
+
+grid.arrange(p4,p5,p6,nrow=1)
+```
+
+
+Top negative words from Xbox, PS5 & youtube comments
+
+What are the top positive words from Xbox, PS & YT tweets
+
+```{r}
+p7 <- xbox_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word,sentiment,sort=TRUE) %>%
+  filter(sentiment=="negative") %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=n,y=word,fill=word))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Top negative words - Xbox",
+       y="",
+       x="Frequency")
+  
+p8 <- ps_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word,sentiment,sort=TRUE) %>%
+  filter(sentiment=="negative") %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=n,y=word,fill=word))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Top negative words - PS",
+       y="",
+       x="Frequency")
+  
+
+
+p9 <- yt %>% 
+  select(textOriginal) %>% 
+  unnest_tokens(word,textOriginal)  %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(word,sentiment,sort=TRUE) %>%
+  filter(sentiment=="negative") %>% 
+  mutate(word=fct_reorder(word,n)) %>% 
+  slice(1:20) %>% 
+  ggplot(aes(x=n,y=word,fill=word))+
+  geom_col(show.legend = FALSE)+
+  theme_light()+
+   labs(title="Top negative words- youtube",
+       y="",
+       x="Frequency")
+
+
+grid.arrange(p7,p8,p9,nrow=1)
+```
+
+Creating wordcloud of words from Xbox, Ps & Youtube data
+
+```{r}
+xbox_topwords <- xbox_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  count(word)
+
+ps_topwords <- ps_tw %>% 
+  select(text,created) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words) %>% 
+  count(word)
+
+yt_topwords<- yt %>% 
+  select(textOriginal) %>% 
+  unnest_tokens(word,textOriginal)  %>% 
+  anti_join(stop_words) %>% 
+  count(word)
+
+pal <- brewer.pal(8, "Dark2")
+
+```
+
+Word cloud for Xbox 
+```{r}
+xbox_topwords %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500","2")) %>%
+  with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+```
+
+
+Word cloud for PS 
+```{r}
+ps_topwords %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500","2")) %>%
+  with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+```
+
+
+Word cloud for Youtube 
+```{r}
+yt_topwords %>% 
+  filter(word %!in% c("https","t.co","rt","4","12","500","2")) %>%
+  with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+```
+
+Topic Modeling in R
+
+```{r}
+xbox_words <- xbox_tw %>% 
+  select(text) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words)
+
+ps_words <- ps_tw %>% 
+  select(text) %>% 
+  unnest_tokens(word,text)  %>% 
+  anti_join(stop_words)
+
+yt_words <- yt %>% 
+  select(textOriginal) %>% 
+  unnest_tokens(word,textOriginal)  %>% 
+  anti_join(stop_words) 
+
+
+myCorpus <- Corpus(VectorSource(xbox_words$word))  
+dtm <- DocumentTermMatrix(myCorpus)
+dtm_new <- removeSparseTerms(dtm,sparse = 0.999)
+rowTotals <- apply(dtm_new , 1, sum) #Find the sum of words in each Document
+dtm.new   <- dtm_new[rowTotals> 0, ]  
+topic_xbox <- topicmodels::LDA(dtm.new, k = 3, control = list(seed = 1234))
+
+
+x_topic <- tidy(topic_xbox)
+
+x_top_terms <- x_topic %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+
+x <- x_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()+
+  theme_light()+
+  labs(title="Topics from Xbox tweets")
+
+
+myCorpus <- Corpus(VectorSource(ps_words$word))  
+dtm <- DocumentTermMatrix(myCorpus)
+dtm_new <- removeSparseTerms(dtm,sparse = 0.999)
+rowTotals <- apply(dtm_new , 1, sum) #Find the sum of words in each Document
+dtm.new   <- dtm_new[rowTotals> 0, ]  
+topic_ps <- topicmodels::LDA(dtm.new, k = 3, control = list(seed = 1234))
+
+
+ps_topic <- tidy(topic_ps)
+
+ps_top_terms <- ps_topic %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ps <- ps_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()+
+  theme_light()+
+  labs(title="Topics from PS tweets")
+
+myCorpus <- Corpus(VectorSource(yt_words$word))  
+dtm <- DocumentTermMatrix(myCorpus)
+dtm_new <- removeSparseTerms(dtm,sparse = 0.999)
+rowTotals <- apply(dtm_new , 1, sum) #Find the sum of words in each Document
+dtm.new   <- dtm_new[rowTotals> 0, ]  
+topic_yt <- topicmodels::LDA(dtm.new, k = 3, control = list(seed = 1234))
+
+
+yt_topic <- tidy(topic_yt)
+
+yt_top_terms <- yt_topic %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+yt <- yt_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()+
+  theme_light()+
+  labs(title="Topics from YT comments")
+
+
+grid.arrange(x,ps,yt)
+```
+
+
